@@ -1,153 +1,207 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Nexus - Fling Things And People",
-    LoadingTitle = "Nexus Development",
+    Name = "Nexus - South Bronx Hub",
+    LoadingTitle = "Nexus South Bronx",
     LoadingSubtitle = "Creation designs - fable",
     ShowText = "Nexus UI",
     Theme = "Default",
     ToggleUIKeybind = "K",
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "NexusDevelopment",
+        FolderName = "NexusSouthBronx",
         FileName = "NexusConfig"
     }
 })
 
--- ========== Tabs ==========
-local MainTab = Window:CreateTab("Main", nil)
-local PlayerTab = Window:CreateTab("Player", nil)
-local CombatTab = Window:CreateTab("Combat", nil)
-local MiscTab = Window:CreateTab("Misc", nil)
-local CreditsTab = Window:CreateTab("Credits", nil)
-
--- ========== Main Tab ==========
+-- Main Tab (empty for now)
+local MainTab = Window:CreateTab("Main")
 MainTab:CreateSection("Welcome")
-MainTab:CreateLabel("Main tab is empty for now.")
+MainTab:CreateLabel("Nexus South Bronx Hub - Features Below")
 
--- ========== Player Tab ==========
-local PlayerSection = PlayerTab:CreateSection("Player Settings")
+-- Player Tab: Utility Exploits
+local PlayerTab = Window:CreateTab("Player")
+PlayerTab:CreateSection("Player Mods")
 
--- Default Walkspeed value
-local walkspeed = 16
-local player = game.Players.LocalPlayer
-
--- Walkspeed slider
+-- Walkspeed
 PlayerTab:CreateSlider({
-    Name = "Walkspeed",
+    Name = "WalkSpeed",
     Range = {0, 250},
     Increment = 1,
     Suffix = "Speed",
-    CurrentValue = walkspeed,
-    Flag = "WalkspeedSlider",
+    CurrentValue = 16,
     Callback = function(value)
-        walkspeed = value
+        local player = game.Players.LocalPlayer
         if player and player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = walkspeed
+            player.Character.Humanoid.WalkSpeed = value
         end
     end
 })
 
--- Infinite Jump toggle
-local infiniteJumpEnabled = false
+-- Infinite Jump
+local infJump = false
 PlayerTab:CreateToggle({
     Name = "Infinite Jump",
     CurrentValue = false,
-    Flag = "InfiniteJumpToggle",
     Callback = function(state)
-        infiniteJumpEnabled = state
-        if infiniteJumpEnabled then
-            Rayfield:Notify({
-                Title = "Infinite Jump",
-                Content = "Enabled",
-                Duration = 3
-            })
-        else
-            Rayfield:Notify({
-                Title = "Infinite Jump",
-                Content = "Disabled",
-                Duration = 3
-            })
-        end
+        infJump = state
+        Rayfield:Notify({
+            Title = "Infinite Jump",
+            Content = infJump and "Enabled" or "Disabled",
+            Duration = 2
+        })
     end
 })
 
--- Infinite jump event connection (only once)
-local UserInputService = game:GetService("UserInputService")
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled then
-        if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infJump then
+        local player = game.Players.LocalPlayer
+        if player and player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
 end)
 
--- ========== Combat Tab ==========
-local CombatSection = CombatTab:CreateSection("Combat Features")
-CombatTab:CreateLabel("No combat features added yet.")
+-- Combat Tab: Aimbot & Silent Aim
+local CombatTab = Window:CreateTab("Combat")
+CombatTab:CreateSection("Combat Mods")
 
--- ========== Misc Tab ==========
-local MiscSection = MiscTab:CreateSection("Miscellaneous")
+--[[ Example Aimbot/Silent Aim base structure — you MUST adapt this to South Bronx using a RemoteSpy
+     and update the hit detection logic based on how the game registers hits.
+     This example aimbot locks your aim to the nearest player's head within an aim radius.
+]]
+local aimKey = Enum.KeyCode.E
+local aimRadius = 100
+local aimbotEnabled = false
+CombatTab:CreateToggle({
+    Name = "Silent Aim / Aimbot",
+    CurrentValue = false,
+    Callback = function(state)
+        aimbotEnabled = state
+        Rayfield:Notify({
+            Title = "Aimbot",
+            Content = aimbotEnabled and "Enabled" or "Disabled",
+            Duration = 2
+        })
+    end
+})
 
-local teleportOnClickEnabled = false
-local mouse = player:GetMouse()
-local teleportConnection = nil
+local function getClosestPlayer()
+    local lp = game.Players.LocalPlayer
+    local char = lp.Character
+    if not char or not char:FindFirstChild("Head") then return end
+    local closest, closestDist
+    for _,plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= lp and plr.Character and plr.Character:FindFirstChild("Head") and plr.Team ~= lp.Team then
+            local dist = (char.Head.Position - plr.Character.Head.Position).Magnitude
+            if (not closestDist or dist < closestDist) and dist <= aimRadius then
+                closest, closestDist = plr, dist
+            end
+        end
+    end
+    return closest
+end
 
+game:GetService("RunService").RenderStepped:Connect(function()
+    if aimbotEnabled then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local lp = game.Players.LocalPlayer
+            local mouse = lp:GetMouse()
+            mouse.TargetFilter = target.Character
+            -- For aimbot: snap camera to head
+            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, target.Character.Head.Position)
+            -- For silent aim you'll want to intercept bullet/hit remote and change its target to target.Character.Head.Position
+        end
+    end
+end)
+
+-- Misc Tab: Free Tier, Hot Chips, Teleport, etc.
+local MiscTab = Window:CreateTab("Misc")
+MiscTab:CreateSection("Miscellaneous")
+
+-- Click-to-Teleport
+local teleportClick = false
+local tpConn
 MiscTab:CreateToggle({
     Name = "Teleport On Click",
     CurrentValue = false,
-    Flag = "TeleportOnClickToggle",
     Callback = function(state)
-        teleportOnClickEnabled = state
-        if teleportOnClickEnabled then
-            -- Connect mouse click event safely
-            if teleportConnection and teleportConnection.Connected then
-                teleportConnection:Disconnect()
-            end
-            teleportConnection = mouse.Button1Down:Connect(function()
-                if not teleportOnClickEnabled then return end
-                if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local mousePos = mouse.Hit and mouse.Hit.p
-                    if mousePos then
-                        local targetPosition = mousePos + Vector3.new(0, 3, 0) -- Offset Y to avoid ground clipping
-                        player.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
-                    end
+        teleportClick = state
+        local player = game.Players.LocalPlayer
+        local mouse = player:GetMouse()
+        if teleportClick then
+            tpConn = mouse.Button1Down:Connect(function()
+                if teleportClick and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p + Vector3.new(0,3,0))
                 end
             end)
-            Rayfield:Notify({
-                Title = "Teleport On Click",
-                Content = "Enabled",
-                Duration = 3
-            })
-        else
-            -- Disconnect when toggle off
-            if teleportConnection and teleportConnection.Connected then
-                teleportConnection:Disconnect()
-                teleportConnection = nil
-            end
-            Rayfield:Notify({
-                Title = "Teleport On Click",
-                Content = "Disabled",
-                Duration = 3
-            })
+        elseif tpConn then
+            tpConn:Disconnect()
+            tpConn = nil
         end
     end
 })
 
--- ========== Credits Tab ==========
-local CreditsSection = CreditsTab:CreateSection("Developer Credits")
-CreditsTab:CreateLabel("Developer Credits: fable")
+-- Gun Dupe (template: must be customized per South Bronx's remotes/objects)
+MiscTab:CreateButton({
+    Name = "Gun Dupe (Example)",
+    Description = "Attempt to dupe all guns in backpack",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        -- You MUST use correct gun RemoteEvent for true dupe; this is a template
+        local gunEvent = ReplicatedStorage:FindFirstChild("GunEvent")
+        local backpack = player:FindFirstChild("Backpack")
+        if gunEvent and backpack then
+            for _,tool in pairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local dupe = tool:Clone()
+                    dupe.Parent = backpack
+                    pcall(function() gunEvent:FireServer(dupe.Name) end)
+                end
+            end
+            Rayfield:Notify({Title = "Gun Dupe", Content="Attempted dupe.", Duration=2})
+        else
+            Rayfield:Notify({Title = "Gun Dupe", Content="Remote/Backpack not found.", Duration=2})
+        end
+    end
+})
 
--- ========== Initialization ==========
+-- Money Dupe (template: must be customized based on detected money RemoteEvent)
+MiscTab:CreateButton({
+    Name = "Money Dupe (Example)",
+    Description = "Attempt to dupe money by firing money event.",
+    Callback = function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local player = game.Players.LocalPlayer
+        -- Replace with actual remote event for adding money
+        local moneyEvent = ReplicatedStorage:FindFirstChild("MoneyEvent")
+        if moneyEvent then
+            for i=1,10 do
+                pcall(function() moneyEvent:FireServer(1000) end)
+                wait(0.1)
+            end
+            Rayfield:Notify({Title="Money Dupe",Content="Attempted dupe.",Duration=2})
+        else
+            Rayfield:Notify({Title="Money Dupe",Content="Money event not found.",Duration=2})
+        end
+    end
+})
 
--- Set initial walkspeed to default on script load
+-- Credits Tab
+local CreditsTab = Window:CreateTab("Credits")
+CreditsTab:CreateSection("Developer Credits")
+CreditsTab:CreateLabel("Developer: fable | Nexus Team")
+
+-- Initial WalkSpeed setup (prevents running at zero speed)
+local player = game.Players.LocalPlayer
 if player and player.Character and player.Character:FindFirstChild("Humanoid") then
-    player.Character.Humanoid.WalkSpeed = walkspeed
+    player.Character.Humanoid.WalkSpeed = 16
 end
 
--- Notification upon script injection
 Rayfield:Notify({
     Title = "Nexus Loaded",
-    Content = "Script injected successfully!",
-    Duration = 4
+    Content = "South Bronx script loaded successfully!",
+    Duration = 3,
 })
