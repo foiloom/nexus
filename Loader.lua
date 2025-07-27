@@ -14,21 +14,25 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
--- Tabs
+-- ========== Tabs ==========
 local MainTab = Window:CreateTab("Main", nil)
 local PlayerTab = Window:CreateTab("Player", nil)
 local CombatTab = Window:CreateTab("Combat", nil)
 local MiscTab = Window:CreateTab("Misc", nil)
 local CreditsTab = Window:CreateTab("Credits", nil)
 
--- Sections (Optional, for cleaner grouping)
--- Main tab - For future use (empty now)
+-- ========== Main Tab ==========
+MainTab:CreateSection("Welcome")
+MainTab:CreateLabel("Main tab is empty for now.")
 
--- Player tab Section
+-- ========== Player Tab ==========
 local PlayerSection = PlayerTab:CreateSection("Player Settings")
 
--- Walkspeed Slider
+-- Default Walkspeed value
 local walkspeed = 16
+local player = game.Players.LocalPlayer
+
+-- Walkspeed slider
 PlayerTab:CreateSlider({
     Name = "Walkspeed",
     Range = {0, 250},
@@ -38,14 +42,13 @@ PlayerTab:CreateSlider({
     Flag = "WalkspeedSlider",
     Callback = function(value)
         walkspeed = value
-        local player = game.Players.LocalPlayer
         if player and player.Character and player.Character:FindFirstChild("Humanoid") then
             player.Character.Humanoid.WalkSpeed = walkspeed
         end
     end
 })
 
--- Infinite Jump Checkbox
+-- Infinite Jump toggle
 local infiniteJumpEnabled = false
 PlayerTab:CreateToggle({
     Name = "Infinite Jump",
@@ -53,30 +56,42 @@ PlayerTab:CreateToggle({
     Flag = "InfiniteJumpToggle",
     Callback = function(state)
         infiniteJumpEnabled = state
+        if infiniteJumpEnabled then
+            Rayfield:Notify({
+                Title = "Infinite Jump",
+                Content = "Enabled",
+                Duration = 3
+            })
+        else
+            Rayfield:Notify({
+                Title = "Infinite Jump",
+                Content = "Disabled",
+                Duration = 3
+            })
+        end
     end
 })
 
--- Connect Infinite Jump event ONCE outside UI callbacks
+-- Infinite jump event connection (only once)
 local UserInputService = game:GetService("UserInputService")
 UserInputService.JumpRequest:Connect(function()
     if infiniteJumpEnabled then
-        local player = game.Players.LocalPlayer
         if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
             player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
 end)
 
--- Combat tab - empty for now, placeholder
-CombatTab:CreateSection("Combat Features")
+-- ========== Combat Tab ==========
+local CombatSection = CombatTab:CreateSection("Combat Features")
+CombatTab:CreateLabel("No combat features added yet.")
 
--- Misc tab Section
+-- ========== Misc Tab ==========
 local MiscSection = MiscTab:CreateSection("Miscellaneous")
 
--- Teleport On Click Checkbox logic
 local teleportOnClickEnabled = false
-local mouse = game.Players.LocalPlayer:GetMouse()
-local teleportConnection
+local mouse = player:GetMouse()
+local teleportConnection = nil
 
 MiscTab:CreateToggle({
     Name = "Teleport On Click",
@@ -85,45 +100,54 @@ MiscTab:CreateToggle({
     Callback = function(state)
         teleportOnClickEnabled = state
         if teleportOnClickEnabled then
-            -- Connect Mouse Button1Down event
+            -- Connect mouse click event safely
             if teleportConnection and teleportConnection.Connected then
                 teleportConnection:Disconnect()
             end
             teleportConnection = mouse.Button1Down:Connect(function()
                 if not teleportOnClickEnabled then return end
-                local player = game.Players.LocalPlayer
                 if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local targetPos = mouse.Hit and mouse.Hit.p
-                    if targetPos then
-                        -- Slightly offset Y to avoid going underground
-                        local newPos = targetPos + Vector3.new(0, 3, 0)
-                        player.Character.HumanoidRootPart.CFrame = CFrame.new(newPos)
+                    local mousePos = mouse.Hit and mouse.Hit.p
+                    if mousePos then
+                        local targetPosition = mousePos + Vector3.new(0, 3, 0) -- Offset Y to avoid ground clipping
+                        player.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
                     end
                 end
             end)
+            Rayfield:Notify({
+                Title = "Teleport On Click",
+                Content = "Enabled",
+                Duration = 3
+            })
         else
-            -- Disconnect event to stop teleporting when disabled
+            -- Disconnect when toggle off
             if teleportConnection and teleportConnection.Connected then
                 teleportConnection:Disconnect()
+                teleportConnection = nil
             end
+            Rayfield:Notify({
+                Title = "Teleport On Click",
+                Content = "Disabled",
+                Duration = 3
+            })
         end
     end
 })
 
--- Credits tab Section
-local CreditsSection = CreditsTab:CreateSection("Credits")
+-- ========== Credits Tab ==========
+local CreditsSection = CreditsTab:CreateSection("Developer Credits")
 CreditsTab:CreateLabel("Developer Credits: fable")
 
--- Set initial Walkspeed on script load (to avoid zero speed)
-local player = game.Players.LocalPlayer
+-- ========== Initialization ==========
+
+-- Set initial walkspeed to default on script load
 if player and player.Character and player.Character:FindFirstChild("Humanoid") then
     player.Character.Humanoid.WalkSpeed = walkspeed
 end
 
--- Notify on script injection complete
+-- Notification upon script injection
 Rayfield:Notify({
     Title = "Nexus Loaded",
     Content = "Script injected successfully!",
-    Duration = 4,
-    Image = nil,
+    Duration = 4
 })
